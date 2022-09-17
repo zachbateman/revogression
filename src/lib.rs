@@ -4,6 +4,7 @@ use rand::seq::SliceRandom;
 use rand_distr::{Normal, Triangular};
 use std::collections::HashMap;
 use std::fmt;
+use rayon::prelude::*;
 
 
 fn num_layers() -> u8 {
@@ -54,6 +55,21 @@ impl Creature<'_> {
             total = inner_total + layer_modifiers.layer_bias;
         }
         total
+    }
+
+    pub fn create_many<'a>(num_creatures: i32, parameter_options: &'a Vec<&str>) -> Vec<Creature<'a>> {
+        let creatures: Vec<Creature> = (0..num_creatures)
+            .map(|_| Creature::new(&parameter_options))
+            .collect();
+        creatures
+    }
+
+    pub fn create_many_parallel<'a>(num_creatures: i32, parameter_options: &'a Vec<&str>) -> Vec<Creature<'a>> {
+        let creatures: Vec<Creature> = (0..num_creatures)
+            .into_par_iter()
+            .map(|_| Creature::new(&parameter_options))
+            .collect();
+        creatures
     }
 
     pub fn new<'a>(parameter_options: &'a Vec<&str>) -> Creature<'a> {
@@ -169,6 +185,7 @@ impl fmt::Display for Coefficients {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Instant;
 
     #[test]
     fn creature_creation() {
@@ -207,10 +224,19 @@ mod tests {
     #[test]
     fn generate_many_creatures() {
         let param_options = vec!["width", "height", "weight"];
-        let mut creatures = Vec::new();
-        for _ in 0..100000 {
-            creatures.push(Creature::new(&param_options));
-        }
+        //let mut creatures = Vec::new();
+
+        let t0 = Instant::now();
+        Creature::create_many(100000, &param_options);
+        let single = Instant::now() - t0;
+        println!("\nSingle Thread: {:.2?}", single);
+
+        let t0 = Instant::now();
+        Creature::create_many_parallel(100000, &param_options);
+        let multi = Instant::now() - t0;
+        println!("Multiple Threads: {:.2?}", multi);
+
+        println!("Multicore Speed: {:.1}x\n", single.as_millis() as f32 / multi.as_millis() as f32);
     }
 
     #[test]
