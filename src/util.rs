@@ -1,5 +1,10 @@
 
 
+/// CAUTION!  Not sure if even need many data checks...
+/// Needed them in Python, but Rust will ensure no
+/// improper types get used at runtime... TBD on this.
+
+
 fn fill_none_with_median<T>(data: &[T]) -> &[T] {
     todo!();
 }

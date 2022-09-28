@@ -21,6 +21,17 @@ pub struct Creature<'a> {
 }
 
 impl Creature<'_> {
+    pub fn new<'a>(parameter_options: &'a Vec<&str>) -> Creature<'a> {
+        let mut equation = Vec::new();
+        for layer in 0..num_layers() {
+            equation.push(LayerModifiers::new(
+                if layer == 0 { true } else {false},
+                &parameter_options,
+            ));
+        }
+        Creature { equation }
+    }
+
     pub fn num_layers(&self) -> usize {
         self.equation.len()
     }
@@ -72,15 +83,76 @@ impl Creature<'_> {
         creatures
     }
 
-    pub fn new<'a>(parameter_options: &'a Vec<&str>) -> Creature<'a> {
-        let mut equation = Vec::new();
-        for layer in 0..num_layers() {
-            equation.push(LayerModifiers::new(
-                if layer == 0 { true } else {false},
-                &parameter_options,
-            ));
+    pub fn mutate(&self, adjustment_speed: &str) -> Creature {
+        let modify_value = match adjustment_speed {
+                "fine" => 0.005,
+                "fast" => 0.05,
+                _ => 0.05,
+        };
+
+        let mut rng = thread_rng();
+        let norm = Normal::new(0.0, modify_value).unwrap();
+
+
+        /*fn modified_coefficients(rng: dyn Rng, norm: Normal<F>, coeff: &Coefficients) -> Coefficients {
+            Coefficients {
+                c: &coeff.c + rng.sample(norm),
+                b: &coeff.b + rng.sample(norm),
+                z: &coeff.z + rng.sample(norm),
+                x: match rng.gen::<f64>() {
+                    num if num < 0.2 => &coeff.x + 1,
+                    num if num < 0.4 && &coeff.x > 1 => &coeff.x - 1,
+                    _ => &coeff.x,
+                }
+            }
+        }*/
+
+
+        //let mut new_equation = self.equation.clone();
+        let mut new_equation: Vec<LayerModifiers> = Vec::new();
+        for layer_mods in &self.equation {
+            let layer_bias = match rng.gen::<f64>() {
+                x if x < 0.5 => layer_mods.layer_bias + rng.sample(norm),
+                _ => layer_mods.layer_bias.clone(),
+            };
+
+            let mut modified_coefficients = |coeff: &Coefficients| {
+                Coefficients {
+                    c: &coeff.c + rng.sample(norm),
+                    b: &coeff.b + rng.sample(norm),
+                    z: &coeff.z + rng.sample(norm),
+                    x: match rng.gen::<f64>() {
+                        num if num < 0.2 => &coeff.x + 1,
+                        num if num < 0.4 && &coeff.x > &1 => &coeff.x - 1,
+                        _ => coeff.x,
+                    }
+                }
+            };
+
+            let previous_layer_coefficients = match &layer_mods.previous_layer_coefficients {
+                Some(coeff) => Some(modified_coefficients(&coeff)),
+                None => None,
+            };
+
+            let mut modifiers = HashMap::new();
+            for (&param, coeff) in &layer_mods.modifiers {
+                modifiers.insert(param, modified_coefficients(coeff));
+            }
+
+
+            let new_layer_mods = LayerModifiers {
+                modifiers: modifiers,
+                previous_layer_coefficients: previous_layer_coefficients,
+                layer_bias: layer_bias,
+            };
+
+            new_equation.push(new_layer_mods);
         }
-        Creature { equation }
+
+        //let param_options = vec!["width", "height", "weight"];
+        //new_equation.push(LayerModifiers::new(true, &param_options));
+
+        Creature { equation: new_equation }
     }
 }
 
@@ -99,6 +171,8 @@ impl fmt::Display for Creature<'_> {
 /// "modifiers" is a collection of Coefficents applied to certain input parameters.
 /// The "previous_layer_coefficients" field is Coefficients applied to a previous layer's output, if applicable.
 /// The "layer_bias" field is a bias added to the layer's calculation.
+#[derive(Clone)]
+#[derive(Debug)]
 struct LayerModifiers<'a> {
     modifiers: HashMap<&'a str, Coefficients>,
     previous_layer_coefficients: Option<Coefficients>,
@@ -147,6 +221,8 @@ impl fmt::Display for LayerModifiers<'_> {
 /// A "Coefficients" struct contains 4 values which
 /// are used to form the following equation given input "param":
 /// Value = C * (B * param + Z) ^ X
+#[derive(Clone)]
+#[derive(Debug)]
 struct Coefficients { c: f32, b: f32, z: f32, x: u8 }
 
 impl Coefficients {
@@ -237,6 +313,17 @@ mod tests {
         println!("Multiple Threads: {:.2?}", multi);
 
         println!("Multicore Speed: {:.1}x\n", single.as_millis() as f32 / multi.as_millis() as f32);
+    }
+
+    #[test]
+    fn check_mutation() {
+        let param_options = vec!["width", "height", "weight"];
+        let creature = Creature::new(&param_options);
+
+        let mutant1 = creature.mutate("fast");
+        let mutant2 = creature.mutate("fine");
+        let mut_bias = mutant1.equation[0].layer_bias + mutant2.equation[0].layer_bias;
+        assert_eq!(mut_bias != (creature.equation[0].layer_bias * 2.0), true);
     }
 
     #[test]
