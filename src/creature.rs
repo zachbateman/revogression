@@ -20,6 +20,11 @@ pub struct Creature<'a> {
     equation: Vec<LayerModifiers<'a>>,
 }
 
+enum MutateSpeed {
+    Fine,
+    Fast,
+}
+
 impl Creature<'_> {
     pub fn new<'a>(parameter_options: &'a Vec<&str>) -> Creature<'a> {
         let mut equation = Vec::new();
@@ -83,30 +88,14 @@ impl Creature<'_> {
         creatures
     }
 
-    pub fn mutate(&self, adjustment_speed: &str) -> Creature {
-        let modify_value = match adjustment_speed {
-                "fine" => 0.005,
-                "fast" => 0.05,
-                _ => 0.05,
+    pub fn mutate(&self, mutate_speed: MutateSpeed) -> Creature {
+        let modify_value = match mutate_speed {
+                MutateSpeed::Fine => 0.005,
+                MutateSpeed::Fast => 0.05,
         };
 
         let mut rng = thread_rng();
         let norm = Normal::new(0.0, modify_value).unwrap();
-
-
-        /*fn modified_coefficients(rng: dyn Rng, norm: Normal<F>, coeff: &Coefficients) -> Coefficients {
-            Coefficients {
-                c: &coeff.c + rng.sample(norm),
-                b: &coeff.b + rng.sample(norm),
-                z: &coeff.z + rng.sample(norm),
-                x: match rng.gen::<f64>() {
-                    num if num < 0.2 => &coeff.x + 1,
-                    num if num < 0.4 && &coeff.x > 1 => &coeff.x - 1,
-                    _ => &coeff.x,
-                }
-            }
-        }*/
-
 
         //let mut new_equation = self.equation.clone();
         let mut new_equation: Vec<LayerModifiers> = Vec::new();
@@ -138,7 +127,6 @@ impl Creature<'_> {
             for (&param, coeff) in &layer_mods.modifiers {
                 modifiers.insert(param, modified_coefficients(coeff));
             }
-
 
             let new_layer_mods = LayerModifiers {
                 modifiers: modifiers,
@@ -320,8 +308,8 @@ mod tests {
         let param_options = vec!["width", "height", "weight"];
         let creature = Creature::new(&param_options);
 
-        let mutant1 = creature.mutate("fast");
-        let mutant2 = creature.mutate("fine");
+        let mutant1 = creature.mutate(MutateSpeed::Fast);
+        let mutant2 = creature.mutate(MutateSpeed::Fine);
         let mut_bias = mutant1.equation[0].layer_bias + mutant2.equation[0].layer_bias;
         assert_eq!(mut_bias != (creature.equation[0].layer_bias * 2.0), true);
     }
