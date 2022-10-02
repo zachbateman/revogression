@@ -16,8 +16,9 @@ fn num_layers() -> u8 {
 /// A "Creature" is essentially a randomly generated function.
 /// The equation of a creature can be one or more Coefficients in one or more
 /// LayerModifiers which function as one or more layers for a simple neural network.
-pub struct Creature<'a> {
-    equation: Vec<LayerModifiers<'a>>,
+pub struct Creature {
+    equation: Vec<LayerModifiers>,
+    cached_error_sum: Option<f32>,
 }
 
 enum MutateSpeed {
@@ -25,8 +26,8 @@ enum MutateSpeed {
     Fast,
 }
 
-impl Creature<'_> {
-    pub fn new<'a>(parameter_options: &'a Vec<&str>) -> Creature<'a> {
+impl Creature {
+    pub fn new(parameter_options: &Vec<&str>) -> Creature {
         let mut equation = Vec::new();
         for layer in 0..num_layers() {
             equation.push(LayerModifiers::new(
@@ -34,7 +35,7 @@ impl Creature<'_> {
                 &parameter_options,
             ));
         }
-        Creature { equation }
+        Creature { equation, cached_error_sum: None }
     }
 
     pub fn num_layers(&self) -> usize {
@@ -42,7 +43,7 @@ impl Creature<'_> {
     }
 
     /// Calculate the resulting output value for this creature given an input of Key: Value data.
-    pub fn calculate(&self, parameters: &HashMap<&str, f32>) -> f32 {
+    pub fn calculate(&self, parameters: &HashMap<String, f32>) -> f32 {
         let mut total = 0.0;
         let mut inner_total = 0.0;
 
@@ -50,7 +51,7 @@ impl Creature<'_> {
             // Run through each input parameter and record impact
             // for each parameter that is used in the curret layer's modifiers.
             for (param, param_value) in parameters {
-                match layer_modifiers.modifiers.get(&param as &str) {
+                match layer_modifiers.modifiers.get(param) {
                     Some(coefficients) => { inner_total += coefficients.calculate(&param_value); },
                     None => (),
                 }
@@ -58,10 +59,7 @@ impl Creature<'_> {
 
             // Check if current layer applies coefficients to the total after previous layer
             // Since "total" is updated at the end of each full layer, that same "total"
-            // is the resulf of the prevous layer used as an input parameter for a "T".
-            // if Some(layer_coefficients) == layer_modifiers.T {
-            //     inner_total += layer_coefficients.calculate(&total);
-            // }
+            // is the resulf of the prevous layer used as an input parameter.
             match &layer_modifiers.previous_layer_coefficients {
                 Some(t_coefficients) => { inner_total += t_coefficients.calculate(&total); },
                 _ => (),
@@ -73,14 +71,14 @@ impl Creature<'_> {
         total
     }
 
-    pub fn create_many<'a>(num_creatures: i32, parameter_options: &'a Vec<&str>) -> Vec<Creature<'a>> {
+    pub fn create_many(num_creatures: i32, parameter_options: &Vec<&str>) -> Vec<Creature> {
         let creatures: Vec<Creature> = (0..num_creatures)
             .map(|_| Creature::new(&parameter_options))
             .collect();
         creatures
     }
 
-    pub fn create_many_parallel<'a>(num_creatures: i32, parameter_options: &'a Vec<&str>) -> Vec<Creature<'a>> {
+    pub fn create_many_parallel(num_creatures: i32, parameter_options: &Vec<&str>) -> Vec<Creature> {
         let creatures: Vec<Creature> = (0..num_creatures)
             .into_par_iter()
             .map(|_| Creature::new(&parameter_options))
@@ -97,7 +95,6 @@ impl Creature<'_> {
         let mut rng = thread_rng();
         let norm = Normal::new(0.0, modify_value).unwrap();
 
-        //let mut new_equation = self.equation.clone();
         let mut new_equation: Vec<LayerModifiers> = Vec::new();
         for layer_mods in &self.equation {
             let layer_bias = match rng.gen::<f64>() {
@@ -124,8 +121,8 @@ impl Creature<'_> {
             };
 
             let mut modifiers = HashMap::new();
-            for (&param, coeff) in &layer_mods.modifiers {
-                modifiers.insert(param, modified_coefficients(coeff));
+            for (param, coeff) in &layer_mods.modifiers {
+                modifiers.insert(param.to_owned(), modified_coefficients(coeff));
             }
 
             let new_layer_mods = LayerModifiers {
@@ -136,15 +133,11 @@ impl Creature<'_> {
 
             new_equation.push(new_layer_mods);
         }
-
-        //let param_options = vec!["width", "height", "weight"];
-        //new_equation.push(LayerModifiers::new(true, &param_options));
-
-        Creature { equation: new_equation }
+        Creature { equation: new_equation, cached_error_sum: None }
     }
 }
 
-impl fmt::Display for Creature<'_> {
+impl fmt::Display for Creature {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}\n", "Creature")?;
         //write!(f, "Creature:\n({}, {})", self.num_layers(), self.equation)
@@ -161,21 +154,21 @@ impl fmt::Display for Creature<'_> {
 /// The "layer_bias" field is a bias added to the layer's calculation.
 #[derive(Clone)]
 #[derive(Debug)]
-struct LayerModifiers<'a> {
-    modifiers: HashMap<&'a str, Coefficients>,
+struct LayerModifiers {
+    modifiers: HashMap<String, Coefficients>,
     previous_layer_coefficients: Option<Coefficients>,
     layer_bias: f32,
 }
 
-impl LayerModifiers<'_> {
-    fn new<'a>(first_layer: bool, parameter_options: &'a Vec<&str>) -> LayerModifiers<'a> {
+impl LayerModifiers {
+    fn new(first_layer: bool, parameter_options: &Vec<&str>) -> LayerModifiers {
         let mut rng = thread_rng();
 
         let mut modifiers = HashMap::new();
         let param_usage_scalar = 2.5 / (parameter_options.len() as f64 + 1.0);
         for &param in parameter_options {
             if rng.gen::<f64>() < param_usage_scalar {
-                modifiers.insert(param, Coefficients::new());
+                modifiers.insert(param.to_string(), Coefficients::new());
             }
         }
 
@@ -192,7 +185,7 @@ impl LayerModifiers<'_> {
         LayerModifiers { modifiers, previous_layer_coefficients, layer_bias }
     }
 }
-impl fmt::Display for LayerModifiers<'_> {
+impl fmt::Display for LayerModifiers {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "    Bias:  {}\n", self.layer_bias)?;
         match &self.previous_layer_coefficients {

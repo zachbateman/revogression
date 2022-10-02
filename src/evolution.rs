@@ -1,31 +1,30 @@
 use std::collections::HashMap;
 use crate::standardize::Standardizer;
+use crate::creature::Creature;
 
 
-pub struct Evolution<'a> {
+pub struct Evolution {
     target: String,
-    data: &'a Vec<HashMap<&'a str, f32>>,
     standardized_data: Vec<HashMap<String, f32>>,
     num_creatures: u32,
     num_cycles: u16,
-    standardizer: Standardizer<'a>,
+    standardizer: Standardizer,
 }
 
-impl<'a> Evolution<'a> {
+impl Evolution {
     fn new(
         target: String,
-        data: &'a Vec<HashMap<&'a str, f32>>,
+        data: &Vec<HashMap<String, f32>>,
         num_creatures: u32,
         num_cycles: u16,
         max_layers: u8,
-    ) -> Evolution<'a> {
+    ) -> Evolution {
 
         let standardizer = Standardizer::new(&data[..]);
-        let standardized_data = standardizer.standardized_values(&data);
+        let standardized_data = standardizer.standardized_values(data);
 
         Evolution {
             target: target,
-            data: data,
             standardized_data: standardized_data,
             num_creatures: num_creatures,
             num_cycles: num_cycles,
@@ -35,6 +34,18 @@ impl<'a> Evolution<'a> {
 }
 
 
+fn calc_error_sum(creature: &Creature,
+                  data_points: &Vec<HashMap<String, f32>>,
+                  target_param: &str) -> f32 {
+    let mut total: f32 = 0.0;
+    for point in data_points {
+        let calc = creature.calculate(&point);
+        let diff = calc - point.get(target_param)
+                               .expect("Data point missing target_param");
+        total += diff.powi(2);
+    }
+    total / (data_points.len() as f32)
+}
 
 
 

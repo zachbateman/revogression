@@ -1,28 +1,28 @@
 use std::collections::HashMap;
 
 
-pub struct Standardizer<'a> {
-    standardizers: HashMap<&'a str, ParamStandardizer>,
+pub struct Standardizer {
+    standardizers: HashMap<String, ParamStandardizer>,
 }
 
-impl Standardizer<'_> {
-    pub fn new<'a>(data: &[HashMap<&'a str, f32>]) -> Standardizer<'a> {
+impl Standardizer {
+    pub fn new(data: &[HashMap<String, f32>]) -> Standardizer {
         let mut standardizers = HashMap::new();
-        for &key in data[0].keys() {
+        for key in data[0].keys() {
             let values: Vec<&f32> = data.iter().map(|hash| hash.get(key).unwrap()).collect();
-            standardizers.insert(key, ParamStandardizer::new(&values));
+            standardizers.insert(key.to_string(), ParamStandardizer::new(&values));
         }
         Standardizer { standardizers }
     }
 
-    pub fn standardized_values(&self, data: &[HashMap<&str, f32>]) -> Vec<HashMap<String, f32>> {
+    pub fn standardized_values(&self, data: &[HashMap<String, f32>]) -> Vec<HashMap<String, f32>> {
         let mut compiled = Vec::new();
         for row in data {
             let mut new_row = HashMap::new();
             for (key, value) in row {
                 new_row.insert(key.to_string(), self.standardizers.get(key)
-                    .expect("Did not have a ParamStandardizer for a given key?")
-                    .standardize(&value));
+                        .expect("Did not have a ParamStandardizer for a given key?")
+                        .standardize(&value));
             }
             compiled.push(new_row);
         }
