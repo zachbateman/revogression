@@ -16,9 +16,10 @@ fn num_layers() -> u8 {
 /// A "Creature" is essentially a randomly generated function.
 /// The equation of a creature can be one or more Coefficients in one or more
 /// LayerModifiers which function as one or more layers for a simple neural network.
+#[derive(Clone)]
 pub struct Creature {
     equation: Vec<LayerModifiers>,
-    cached_error_sum: Option<f32>,
+    pub cached_error_sum: Option<f32>,
 }
 
 enum MutateSpeed {
@@ -71,14 +72,14 @@ impl Creature {
         total
     }
 
-    pub fn create_many(num_creatures: i32, parameter_options: &Vec<&str>) -> Vec<Creature> {
+    pub fn create_many(num_creatures: u32, parameter_options: &Vec<&str>) -> Vec<Creature> {
         let creatures: Vec<Creature> = (0..num_creatures)
             .map(|_| Creature::new(&parameter_options))
             .collect();
         creatures
     }
 
-    pub fn create_many_parallel(num_creatures: i32, parameter_options: &Vec<&str>) -> Vec<Creature> {
+    pub fn create_many_parallel(num_creatures: u32, parameter_options: &Vec<&str>) -> Vec<Creature> {
         let creatures: Vec<Creature> = (0..num_creatures)
             .into_par_iter()
             .map(|_| Creature::new(&parameter_options))
@@ -258,7 +259,7 @@ mod tests {
         println!("{}", test_coeff);
         assert_eq!((test_coeff.c.abs() + test_coeff.b.abs()) > 0.0, true);
 
-        let input_data = HashMap::from([("width", 2.1245), ("height", 0.52412)]);
+        let input_data = HashMap::from([("width".to_string(), 2.1245), ("height".to_string(), 0.52412)]);
 
         let mut creatures = Vec::new();
         for _ in 0..15 {
