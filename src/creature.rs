@@ -22,7 +22,7 @@ pub struct Creature {
     pub cached_error_sum: Option<f32>,
 }
 
-enum MutateSpeed {
+pub enum MutateSpeed {
     Fine,
     Fast,
 }
