@@ -25,7 +25,8 @@ impl Evolution {
         let standardizer = Standardizer::new(&data[..]);
         let standardized_data = standardizer.standardized_values(data);
 
-        let param_options = data[0].keys().map(|s| s.as_str()).collect();
+        let param_options = data[0].keys().map(|s| s.as_str())
+            .filter(|s| s != &target.as_str()).collect();
 
         let mut creatures = Creature::create_many_parallel(num_creatures, &param_options);
         let mut best_creatures = Vec::new();
@@ -76,7 +77,7 @@ fn print_cycle_data(cycle: u16, median_error: f32, best_creature: &Creature) -> 
     println!("Cycle - {} -", cycle);
     println!("Median error: {}", median_error);
     println!("Best Creature:");
-    println!("  Generation: XX   Error: {}", best_creature.cached_error_sum.unwrap());
+    println!("  Generation: {}   Error: {}", best_creature.generation, best_creature.cached_error_sum.unwrap());
     println!("{}", best_creature);
 }
 
@@ -140,4 +141,55 @@ mod tests {
         let evo = Evolution::new(target.into(), &data, 10000, 10, 3);
         assert_eq!(evo.num_creatures == 10000, true);
     }
+
+    #[test]
+    fn parabola() {
+        let parabola_data = vec![
+            HashMap::from([("x".to_string(), -20.0), ("y".to_string(), 195.0967073301952)]),
+            HashMap::from([("x".to_string(), -19.0), ("y".to_string(), 205.88669941695193)]),
+            HashMap::from([("x".to_string(), -18.0), ("y".to_string(), 75.05183418690936)]),
+            HashMap::from([("x".to_string(), -17.0), ("y".to_string(), 153.31304897814132)]),
+            HashMap::from([("x".to_string(), -16.0), ("y".to_string(), 180.72678834266526)]),
+            HashMap::from([("x".to_string(), -15.0), ("y".to_string(), 81.73490536370575)]),
+            HashMap::from([("x".to_string(), -14.0), ("y".to_string(), 76.98269474497451)]),
+            HashMap::from([("x".to_string(), -13.0), ("y".to_string(), 106.65404246488129)]),
+            HashMap::from([("x".to_string(), -12.0), ("y".to_string(), 101.81854634039516)]),
+            HashMap::from([("x".to_string(), -11.0), ("y".to_string(), 32.735790537057994)]),
+            HashMap::from([("x".to_string(), -10.0), ("y".to_string(), 3.5140689599924273)]),
+            HashMap::from([("x".to_string(), -9.0), ("y".to_string(), 21.979234525796137)]),
+            HashMap::from([("x".to_string(), -8.0), ("y".to_string(), 2.101943660864327)]),
+            HashMap::from([("x".to_string(), -7.0), ("y".to_string(), 4.083877304799986)]),
+            HashMap::from([("x".to_string(), -6.0), ("y".to_string(), 0.12110473958116565)]),
+            HashMap::from([("x".to_string(), -5.0), ("y".to_string(), 16.57223235311977)]),
+            HashMap::from([("x".to_string(), -4.0), ("y".to_string(), 0.14511553873582717)]),
+            HashMap::from([("x".to_string(), -3.0), ("y".to_string(), 2.510511396206416)]),
+            HashMap::from([("x".to_string(), -2.0), ("y".to_string(), 56.587670650914006)]),
+            HashMap::from([("x".to_string(), -1.0), ("y".to_string(), 4.880296227847032)]),
+            HashMap::from([("x".to_string(), 0.0), ("y".to_string(), 15.393806879686704)]),
+            HashMap::from([("x".to_string(), 1.0), ("y".to_string(), 19.980723972406757)]),
+            HashMap::from([("x".to_string(), 2.0), ("y".to_string(), 46.44040802736543)]),
+            HashMap::from([("x".to_string(), 3.0), ("y".to_string(), 76.32570640372656)]),
+            HashMap::from([("x".to_string(), 4.0), ("y".to_string(), 28.344936970432833)]),
+            HashMap::from([("x".to_string(), 5.0), ("y".to_string(), 107.80487596755955)]),
+            HashMap::from([("x".to_string(), 6.0), ("y".to_string(), 90.52490037859376)]),
+            HashMap::from([("x".to_string(), 7.0), ("y".to_string(), 157.59858818802704)]),
+            HashMap::from([("x".to_string(), 8.0), ("y".to_string(), 143.33624805335427)]),
+            HashMap::from([("x".to_string(), 9.0), ("y".to_string(), 145.24993288695646)]),
+            HashMap::from([("x".to_string(), 10.0), ("y".to_string(), 260.1807578980633)]),
+            HashMap::from([("x".to_string(), 11.0), ("y".to_string(), 185.66458035427738)]),
+            HashMap::from([("x".to_string(), 12.0), ("y".to_string(), 399.47143038541725)]),
+            HashMap::from([("x".to_string(), 13.0), ("y".to_string(), 461.637154269764)]),
+            HashMap::from([("x".to_string(), 14.0), ("y".to_string(), 224.52939759007862)]),
+            HashMap::from([("x".to_string(), 15.0), ("y".to_string(), 435.1803248133029)]),
+            HashMap::from([("x".to_string(), 16.0), ("y".to_string(), 624.3116876259189)]),
+            HashMap::from([("x".to_string(), 17.0), ("y".to_string(), 453.5298507352485)]),
+            HashMap::from([("x".to_string(), 18.0), ("y".to_string(), 396.33513809585935)]),
+            HashMap::from([("x".to_string(), 19.0), ("y".to_string(), 415.8142609595538)]),
+            HashMap::from([("x".to_string(), 20.0), ("y".to_string(), 758.0144333664495)]),
+        ];
+
+        let target = String::from("y");
+        let model = Evolution::new(target, &parabola_data, 10000, 10, 3);
+    }
+
 }

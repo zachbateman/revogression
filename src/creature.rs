@@ -20,6 +20,7 @@ fn num_layers() -> u8 {
 pub struct Creature {
     equation: Vec<LayerModifiers>,
     pub cached_error_sum: Option<f32>,
+    pub generation: u8,
 }
 
 pub enum MutateSpeed {
@@ -36,7 +37,7 @@ impl Creature {
                 &parameter_options,
             ));
         }
-        Creature { equation, cached_error_sum: None }
+        Creature { equation, cached_error_sum: None, generation: 1 }
     }
 
     pub fn num_layers(&self) -> usize {
@@ -134,7 +135,7 @@ impl Creature {
 
             new_equation.push(new_layer_mods);
         }
-        Creature { equation: new_equation, cached_error_sum: None }
+        Creature { equation: new_equation, cached_error_sum: None , generation: &self.generation + 1 }
     }
 }
 
