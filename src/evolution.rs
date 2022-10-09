@@ -60,6 +60,27 @@ impl Evolution {
                 ));
             }
         }
+        let mut min_error = 100_000_000_000.0;  // arbitrarily large starting number
+        for creature in &best_creatures {
+            match creature.cached_error_sum {
+                Some(error) => {
+                    if error < min_error {
+                        min_error = error;
+                    }
+                },
+                _ => (),
+            }
+        }
+
+        let best_creature = best_creatures
+            .iter()
+            .find(|creature| creature.cached_error_sum == Some(min_error))
+            .expect("Error matching min_error to a creature!");
+        let optimized_creature = optimize_creature(&best_creature, &standardized_data, &target, 30);
+
+        print_optimize_data(best_creature.cached_error_sum.unwrap(),
+                            optimized_creature.cached_error_sum.unwrap(),
+                            &optimized_creature);
 
         Evolution {
             target: target,
@@ -70,6 +91,51 @@ impl Evolution {
             best_creatures: best_creatures,
         }
     }
+}
+
+fn optimize_creature(creature: &Creature,
+    data_points: &Vec<HashMap<String, f32>>,
+    target: &str,
+    iterations: u16) -> Creature {
+
+    let mut errors = Vec::new();
+    let mut best_error = creature.cached_error_sum.unwrap();
+    let mut speed = MutateSpeed::Fast;
+    let mut best_creature = creature.clone();
+    for i in 0..=iterations {
+        let mut creatures = vec![best_creature.clone()];
+        creatures.extend((0..500).map(|_| best_creature.mutate(speed.clone())).collect::<Vec<Creature>>());
+
+        for creature in creatures.iter_mut() {
+            if creature.cached_error_sum == None {
+                let err = calc_error_sum(&creature, &data_points, &target);
+                creature.cached_error_sum = Some(err);
+            }
+        }
+
+        let (min_error, median_error) = error_results(&creatures);
+        errors.push(min_error);
+
+        if min_error < best_error {
+            best_error = min_error;
+            best_creature = creatures
+                .iter()
+                .find(|creature| creature.cached_error_sum == Some(min_error))
+                .expect("Error matching min_error to a creature!").clone();
+        }
+
+        if i > 5 && min_error / errors.get(errors.len() - 4).unwrap() > 0.9999 {
+            speed = MutateSpeed::Fine;
+        }
+    }
+    best_creature
+}
+
+fn print_optimize_data(start_error: f32, end_error: f32, best_creature: &Creature) -> () {
+    println!("\n\n--- FINAL OPTIMIZATION COMPLETE ---");
+    println!("Start: {}    Best: {}", start_error, end_error);
+    println!("  Generation: {}   Error: {}", best_creature.generation, best_creature.cached_error_sum.unwrap());
+    println!("{}", best_creature);
 }
 
 fn print_cycle_data(cycle: u16, median_error: f32, best_creature: &Creature) -> () {
@@ -93,9 +159,7 @@ fn error_results(creatures: &Vec<Creature>) -> (f32, f32) {
 }
 
 fn kill_weak_creatures(creatures: Vec<Creature>, median_error: &f32) -> Vec<Creature> {
-    creatures.into_iter()
-        .filter(|creature| creature.cached_error_sum.unwrap() < *median_error)
-        .collect()
+    creatures.into_iter().filter(|creature| creature.cached_error_sum.unwrap() < *median_error).collect()
 }
 
 fn mutated_top_creatures(creatures: &Vec<Creature>, min_error: &f32, median_error: &f32) -> Vec<Creature> {
@@ -187,7 +251,6 @@ mod tests {
             HashMap::from([("x".to_string(), 19.0), ("y".to_string(), 415.8142609595538)]),
             HashMap::from([("x".to_string(), 20.0), ("y".to_string(), 758.0144333664495)]),
         ];
-
         let target = String::from("y");
         let model = Evolution::new(target, &parabola_data, 10000, 10, 3);
     }

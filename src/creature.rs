@@ -23,6 +23,7 @@ pub struct Creature {
     pub generation: u8,
 }
 
+#[derive(Clone)]
 pub enum MutateSpeed {
     Fine,
     Fast,
