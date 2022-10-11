@@ -9,6 +9,7 @@ edition = "2021"
 rand = "0.8.5"
 rand_distr = "0.4.3"
 rayon = "1.5.3"
+itertools = "0.10.5"
 
 [profile.bench]
 debug = true

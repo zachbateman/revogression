@@ -11,6 +11,7 @@ pub struct Evolution {
     num_cycles: u16,
     standardizer: Standardizer,
     best_creatures: Vec<Creature>,
+    best_creature: Creature,
 }
 
 impl Evolution {
@@ -92,7 +93,14 @@ impl Evolution {
             num_cycles: num_cycles,
             standardizer: standardizer,
             best_creatures: best_creatures,
+            best_creature: optimized_creature,
         }
+    }
+
+    fn predict_point(&self, data_point: HashMap<String, f32>) -> f32 {
+        let standardized_point = self.standardizer.standardized_value(&data_point);
+        let result = self.best_creature.calculate(&standardized_point);
+        self.standardizer.unstandardize_value(&self.target, result)
     }
 }
 
@@ -190,6 +198,8 @@ fn calc_error_sum(creature: &Creature,
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use itertools::izip;
 
     #[test]
     fn basic_evolution() {
@@ -252,7 +262,16 @@ mod tests {
             HashMap::from([("x".to_string(), 20.0), ("y".to_string(), 758.0144333664495)]),
         ];
         let target = String::from("y");
-        let model = Evolution::new(target, &parabola_data, 100000, 10, 1);
+        let model = Evolution::new(target, &parabola_data, 5000, 7, 3);
+
+        let output_data: Vec<f32> = (-20..=20)
+            .map(|x| model.predict_point(HashMap::from([("x".to_string(), x as f32)])))
+            .collect();
+        let mut output_string = String::from("x,y,\n");
+        for (x, y) in izip!(-20..=20, output_data) {
+            output_string += &format!("{},{},\n", x, y);
+        }
+        fs::write("parabola_output.csv", output_string).expect("Unable to write to file");
     }
 
 }

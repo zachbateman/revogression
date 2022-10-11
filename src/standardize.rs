@@ -15,6 +15,16 @@ impl Standardizer {
         Standardizer { standardizers }
     }
 
+    pub fn standardized_value(&self, data: &HashMap<String, f32>) -> HashMap<String, f32> {
+        let mut standardized = HashMap::new();
+        for (key, value) in data {
+            standardized.insert(key.to_string(), self.standardizers.get(key)
+                    .expect("Did not have a ParamStandardizer for a given key?")
+                    .standardize(&value));
+        }
+        standardized
+    }
+
     pub fn standardized_values(&self, data: &[HashMap<String, f32>]) -> Vec<HashMap<String, f32>> {
         let mut compiled = Vec::new();
         for row in data {
