@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use crate::standardize::Standardizer;
 use crate::creature::{Creature, MutateSpeed};
-// use rayon::prelude::*;
+use rayon::prelude::*;
 
 
 pub struct Evolution {
@@ -23,21 +23,23 @@ impl Evolution {
     ) -> Evolution {
 
         let standardizer = Standardizer::new(&data[..]);
+        standardizer.print_standardization();
         let standardized_data = standardizer.standardized_values(data);
 
         let param_options = data[0].keys().map(|s| s.as_str())
             .filter(|s| s != &target.as_str()).collect();
 
-        let mut creatures = Creature::create_many_parallel(num_creatures, &param_options);
+        let mut creatures = Creature::create_many_parallel(num_creatures, &param_options, max_layers);
         let mut best_creatures = Vec::new();
 
         for cycle in 1..=num_cycles {
-            for creature in creatures.iter_mut() {
+            creatures.par_iter_mut().for_each(|creature| {
                 if creature.cached_error_sum == None {
                     let err = calc_error_sum(&creature, &standardized_data, &target);
                     creature.cached_error_sum = Some(err);
                 }
-            }
+            });
+
 
             let (min_error, median_error) = error_results(&creatures);
 
@@ -56,10 +58,11 @@ impl Evolution {
             creatures.truncate(num_creatures as usize);
             if creatures.len() < num_creatures as usize {
                 creatures.append(&mut Creature::create_many_parallel(
-                    num_creatures - creatures.len() as u32, &param_options
+                    num_creatures - creatures.len() as u32, &param_options, max_layers
                 ));
             }
         }
+
         let mut min_error = 100_000_000_000.0;  // arbitrarily large starting number
         for creature in &best_creatures {
             match creature.cached_error_sum {
@@ -106,12 +109,12 @@ fn optimize_creature(creature: &Creature,
         let mut creatures = vec![best_creature.clone()];
         creatures.extend((0..500).map(|_| best_creature.mutate(speed.clone())).collect::<Vec<Creature>>());
 
-        for creature in creatures.iter_mut() {
+        creatures.par_iter_mut().for_each(|creature| {
             if creature.cached_error_sum == None {
                 let err = calc_error_sum(&creature, &data_points, &target);
                 creature.cached_error_sum = Some(err);
             }
-        }
+        });
 
         let (min_error, median_error) = error_results(&creatures);
         errors.push(min_error);
@@ -164,13 +167,10 @@ fn kill_weak_creatures(creatures: Vec<Creature>, median_error: &f32) -> Vec<Crea
 
 fn mutated_top_creatures(creatures: &Vec<Creature>, min_error: &f32, median_error: &f32) -> Vec<Creature> {
     let error_cutoff = (min_error + median_error) / 2.0;
-    let mut mutants = Vec::new();
-    for creature in creatures {
-        if creature.cached_error_sum.unwrap() < error_cutoff {
-            mutants.push(creature.mutate(MutateSpeed::Fast));
-        }
-    }
-    mutants
+    creatures.into_par_iter()
+             .filter(|cr| cr.cached_error_sum.unwrap() < error_cutoff)
+             .map(|cr| cr.mutate(MutateSpeed::Fast))
+             .collect()
 }
 
 fn calc_error_sum(creature: &Creature,
@@ -252,7 +252,7 @@ mod tests {
             HashMap::from([("x".to_string(), 20.0), ("y".to_string(), 758.0144333664495)]),
         ];
         let target = String::from("y");
-        let model = Evolution::new(target, &parabola_data, 10000, 10, 3);
+        let model = Evolution::new(target, &parabola_data, 100000, 10, 1);
     }
 
 }

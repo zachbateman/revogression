@@ -30,9 +30,15 @@ pub enum MutateSpeed {
 }
 
 impl Creature {
-    pub fn new(parameter_options: &Vec<&str>) -> Creature {
+    pub fn new(parameter_options: &Vec<&str>, max_layers: u8) -> Creature {
         let mut equation = Vec::new();
-        for layer in 0..num_layers() {
+
+        let mut layer_limit = num_layers();
+        if layer_limit > max_layers {
+            layer_limit = max_layers;
+        }
+
+        for layer in 0..layer_limit {
             equation.push(LayerModifiers::new(
                 if layer == 0 { true } else {false},
                 &parameter_options,
@@ -74,17 +80,17 @@ impl Creature {
         total
     }
 
-    pub fn create_many(num_creatures: u32, parameter_options: &Vec<&str>) -> Vec<Creature> {
+    pub fn create_many(num_creatures: u32, parameter_options: &Vec<&str>, max_layers: u8) -> Vec<Creature> {
         let creatures: Vec<Creature> = (0..num_creatures)
-            .map(|_| Creature::new(&parameter_options))
+            .map(|_| Creature::new(&parameter_options, max_layers))
             .collect();
         creatures
     }
 
-    pub fn create_many_parallel(num_creatures: u32, parameter_options: &Vec<&str>) -> Vec<Creature> {
+    pub fn create_many_parallel(num_creatures: u32, parameter_options: &Vec<&str>, max_layers: u8) -> Vec<Creature> {
         let creatures: Vec<Creature> = (0..num_creatures)
             .into_par_iter()
-            .map(|_| Creature::new(&parameter_options))
+            .map(|_| Creature::new(&parameter_options, max_layers))
             .collect();
         creatures
     }
@@ -142,7 +148,7 @@ impl Creature {
 
 impl fmt::Display for Creature {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}\n", "Creature")?;
+        write!(f, " {}\n", "Creature")?;
         //write!(f, "Creature:\n({}, {})", self.num_layers(), self.equation)
         for (i, layer_mod) in self.equation.iter().enumerate() {
             write!(f, "  Layer {}\n{}", i+1, layer_mod)?;
@@ -190,7 +196,7 @@ impl LayerModifiers {
 }
 impl fmt::Display for LayerModifiers {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "    Bias:  {}\n", self.layer_bias)?;
+        write!(f, "    Bias:  {:.4}\n", self.layer_bias)?;
         match &self.previous_layer_coefficients {
             Some(coeff) => write!(f, "    Previous Layer:   ->  {}\n", coeff)?,
             _ => (),
@@ -236,7 +242,7 @@ impl Coefficients {
 }
 impl fmt::Display for Coefficients {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} * ({} * param + {}) ^ {}", self.c, self.b, self.z, self.x)
+        write!(f, "{:.4} * ({:.4} * param + {:.4}) ^ {}", self.c, self.b, self.z, self.x)
     }
 }
 
@@ -250,7 +256,7 @@ mod tests {
     #[test]
     fn creature_creation() {
         let param_options = vec!["width", "height", "weight"];
-        let creature = Creature::new(&param_options);
+        let creature = Creature::new(&param_options, 3);
         println!("\n\n{}\n", creature);
 
         assert_eq!(creature.num_layers() >= 1 && creature.num_layers() <= 3, true);
@@ -265,7 +271,7 @@ mod tests {
 
         let mut creatures = Vec::new();
         for _ in 0..15 {
-            creatures.push(Creature::new(&param_options));
+            creatures.push(Creature::new(&param_options, 3));
         }
         println!("\n{}", creatures[5]);
         println!("\n{}", creatures[10]);
@@ -287,12 +293,12 @@ mod tests {
         //let mut creatures = Vec::new();
 
         let t0 = Instant::now();
-        Creature::create_many(100000, &param_options);
+        Creature::create_many(100000, &param_options, 3);
         let single = Instant::now() - t0;
         println!("\nSingle Thread: {:.2?}", single);
 
         let t0 = Instant::now();
-        Creature::create_many_parallel(100000, &param_options);
+        Creature::create_many_parallel(100000, &param_options, 3);
         let multi = Instant::now() - t0;
         println!("Multiple Threads: {:.2?}", multi);
 
@@ -302,7 +308,7 @@ mod tests {
     #[test]
     fn check_mutation() {
         let param_options = vec!["width", "height", "weight"];
-        let creature = Creature::new(&param_options);
+        let creature = Creature::new(&param_options, 3);
 
         let mutant1 = creature.mutate(MutateSpeed::Fast);
         let mutant2 = creature.mutate(MutateSpeed::Fine);

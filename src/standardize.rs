@@ -33,8 +33,15 @@ impl Standardizer {
             .unwrap_or_else(|| panic!("Unable to find ParamStandardizer for {}", param))
             .unstandardize(&value)
     }
+
+    pub fn print_standardization(&self) {
+        for (key, param_stand) in &self.standardizers {
+            println!("Key: {}  ParamStand: {:?}", key, param_stand);
+        }
+    }
 }
 
+#[derive(Debug)]
 pub struct ParamStandardizer {
     mean: f32,
     stdev: f32,
@@ -54,11 +61,6 @@ impl ParamStandardizer {
         value * self.stdev + self.mean
     }
 }
-
-
-
-
-
 
 /// Mean function taken from Rust Cookbook
 fn mean(data: &[&f32]) -> Option<f32> {
@@ -83,8 +85,6 @@ fn std_deviation(data: &[&f32]) -> Option<f32> {
         _ => None
     }
 }
-
-
 
 
 #[cfg(test)]
