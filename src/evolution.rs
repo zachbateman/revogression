@@ -6,7 +6,6 @@ use rayon::prelude::*;
 
 pub struct Evolution {
     target: String,
-    standardized_data: Vec<HashMap<String, f32>>,
     num_creatures: u32,
     num_cycles: u16,
     standardizer: Standardizer,
@@ -27,8 +26,10 @@ impl Evolution {
         standardizer.print_standardization();
         let standardized_data = standardizer.standardized_values(data);
 
-        let param_options = data[0].keys().map(|s| s.as_str())
-            .filter(|s| s != &target.as_str()).collect();
+        let param_options = data[0].keys()
+                                   .map(|s| s.as_str())
+                                   .filter(|s| s != &target.as_str())
+                                   .collect();
 
         let mut creatures = Creature::create_many_parallel(num_creatures, &param_options, max_layers);
         let mut best_creatures = Vec::new();
@@ -40,7 +41,6 @@ impl Evolution {
                     creature.cached_error_sum = Some(err);
                 }
             });
-
 
             let (min_error, median_error) = error_results(&creatures);
 
@@ -88,7 +88,6 @@ impl Evolution {
 
         Evolution {
             target: target,
-            standardized_data: standardized_data,
             num_creatures: num_creatures,
             num_cycles: num_cycles,
             standardizer: standardizer,
@@ -170,7 +169,9 @@ fn error_results(creatures: &Vec<Creature>) -> (f32, f32) {
 }
 
 fn kill_weak_creatures(creatures: Vec<Creature>, median_error: &f32) -> Vec<Creature> {
-    creatures.into_iter().filter(|creature| creature.cached_error_sum.unwrap() < *median_error).collect()
+    creatures.into_par_iter()
+             .filter(|creature| creature.cached_error_sum.unwrap() < *median_error)
+             .collect()
 }
 
 fn mutated_top_creatures(creatures: &Vec<Creature>, min_error: &f32, median_error: &f32) -> Vec<Creature> {
